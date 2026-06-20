@@ -6,6 +6,8 @@
  */
 
 #include <avr/io.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #define F_CPU 16000000UL // The clock rate.
 #define BAUD 9600 // The baud rate.
@@ -18,10 +20,35 @@
  */
 void uartInit(void) 
 {
-    UBRR0H = (UBRR_VAL >> 8);
-    UBRR0L = UBRR_VAL;
-    UCSR0B = (1 << TXEN0);
-    UCSR0C = (1 << UCSZ01) | (1 << UCSZ00);
+    UBRR0H = (UBRR_VAL >> 8); // Set BAUD high bit.
+    UBRR0L = UBRR_VAL;        // Set BAUD low bit.
+    UCSR0B = (1 << RXEN0) | (1 << TXEN0);   // Enable rcvr. and trnsmttr.
+    UCSR0C = (1 << UCSZ01) | (1 << UCSZ00); // Set 8-bit char.
+}
+
+/**
+ * @brief Receives a byte over UART.
+ *
+ * @return A received byte.
+ * @retval  byte    The byte received.
+ */
+char uartReceiveByte(void)
+{
+    while (!(UCSR0A & (1 << RXC0)));    // Wait until buffer fills.
+    return UDR0;                        // Return byte from buffer.
+}
+
+/**
+ * @brief Receives a string over UART.
+ *
+ * @param[in]   size    The string's size.
+ * @param[out]  str     The string.
+ */
+void uartReceiveString(int size, char* str)
+{
+    for (int i = 0; i < size; i++) // Construct the string.
+        *(str+i) = uartReceiveByte();
+    *(str+size) = '\0';
 }
 
 /**
@@ -31,8 +58,8 @@ void uartInit(void)
  */
 void uartSendByte(unsigned char byte)
 {
-    while (!(UCSR0A & (1 << UDRE0)));
-    UDR0 = byte;
+    while (!(UCSR0A & (1 << UDRE0)));   // Wait until buffer empties.
+    UDR0 = byte;                        // Write byte to buffer.
 }
 
 /**
@@ -59,20 +86,20 @@ void uartSendUInt(unsigned long value)
         return;
     }
 
-    char buf[20]; // Character buffer.
+    char bfr[20]; // Character buffer.
     int i = 0; // Index.
     
     // Store the digits in little-endian form
     while (value > 0)
     {
-        buf[i++] = '0' + (value % 10);
+        bfr[i++] = '0' + (value % 10);
         value /= 10;
     }
 
     // Send the digits in big-endian form.
     for (int j = i - 1; j >= 0; j--)
     {
-        uartSendByte(buf[j]);
+        uartSendByte(bfr[j]);
     }
 }
 
@@ -104,15 +131,34 @@ unsigned long factorial(int id)
  */
 int main(void)
 {
+    /* INITIALIZATION */
     uartInit();
 
-    // Run the factorial program.
-    unsigned long result = factorial(10);
+    /* REPETITION */
+    while (1) {
+        // Welcome the user.
+        uartSendString("***********************\r\n"
+                       "* Welcome to RADASMIR *\r\n"
+                       "***********************\r\n"
+                       "What do you seek?\r\n");
+        char op = uartReceiveByte();
 
-    // Transmit the result over UART0.
-    uartSendString("Result: ");
-    uartSendUInt(result);
-    uartSendString("\r\n");
+        switch (op)
+        {
+            case 'a':
+                uartSendString("FACTORIAL\r\nEnter your number: ");
+                char num[3];
+                uartReceiveString(2, num);
+                int id = atoi(num);
+                uartSendString("\r\nResult: ");
+                uartSendUInt(factorial(id));
+                break;
+            default:
+                uartSendString("Invalid action...\r\n");
+        }
 
-    while (1) {}
+        uartSendString("\r\n\r\n");
+    }
+
+    return 0;
 }
