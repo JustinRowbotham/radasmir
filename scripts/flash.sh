@@ -1,7 +1,7 @@
 # Flash the Fun Program
 
 # Convert to ELF.
-avr-gcc -mmcu=atmega2560 -DF_CPU=16000000UL -Os -o exes/fun.elf code/fun.c
+make
 
 # Convert to HEX.
 avr-objcopy -O ihex -R .eeprom exes/fun.elf exes/fun.hex
