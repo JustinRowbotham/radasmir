@@ -9,7 +9,9 @@
 #include <stdlib.h>
 
 #include "uart.h"
+#include "led.h"
 #include "math.h"
+#include "morse.h"
 
 /* MAIN LOOP */
 
@@ -22,6 +24,7 @@ int main(void)
 {
     /* INITIALIZATION */
     uartInit();
+    ledInit();
 
     /* REPETITION */
     while (1) {
@@ -34,13 +37,27 @@ int main(void)
 
         switch (op)
         {
-            case 'a':
+            case 't':
+                uartSendString("Testing 1 second light on, 2 second off, "
+                        "1 on...");
+                ledBlink(5,10);
+                ledOn(5);
+                ledOff(0);
+                break;
+            case '!':
                 uartSendString("FACTORIAL\r\nEnter your number: ");
                 char num[3];
                 uartReceiveString(2, num);
                 int id = atoi(num);
                 uartSendString("\r\nResult: ");
                 uartSendUInt(factorial(id));
+                break;
+            case '.':
+                uartSendString("MORSE\r\nEnter your phrase: ");
+                char str[21];
+                uartReceiveString(20, str);
+                uartSendString("\r\nWatch the LED for your message!");
+                morsePhrase(str);
                 break;
             default:
                 uartSendString("Invalid action...\r\n");
